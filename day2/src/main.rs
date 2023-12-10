@@ -7,6 +7,7 @@ use nom::{
     multi::separated_list1,
 };
 use std::{
+    cmp::max,
     fs::File,
     io::{BufReader, BufRead},
     ops::Add,
@@ -34,6 +35,10 @@ impl Add for Counts {
 }
 
 const EMPTY: Counts = Counts { r: 0, g: 0, b: 0 };
+
+fn max_each(a: Counts, b: Counts) -> Counts {
+    Counts { r: max(a.r, b.r), g: max(a.g, b.g), b: max(a.b, b.b) }
+}
 
 #[derive(Debug)]
 struct Game {
@@ -69,12 +74,18 @@ fn main() {
     let lines = BufReader::new(file).lines();
     const LIMITS: Counts = Counts { r: 12, g: 13, b: 14 };
     let mut good_ids = 0;
+    let mut power_sum = 0;
     for line in lines {
         let l = line.unwrap();
         let (remaining, game) = parse_game(&l).unwrap();
         assert!(remaining.is_empty());
         let is_good = game.rounds.iter().all(|x| x.is_within(LIMITS));
         if is_good { good_ids += game.id; }
+
+        let min_needed = game.rounds.iter().fold(EMPTY, |acc, &x| max_each(acc, x));
+        let power = min_needed.r * min_needed.g * min_needed.b;
+        power_sum += power;
     }
     println!("{}", good_ids);
+    println!("{}", power_sum);
 }
