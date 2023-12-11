@@ -1,4 +1,5 @@
 use std::cmp;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
 
@@ -11,7 +12,7 @@ enum Tile {
 
 type Grid = Vec<Vec<Tile>>;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct Loc {
     row: usize,
     col: usize,
@@ -55,13 +56,15 @@ fn find_numbers(g: &Grid) -> Vec<Number> {
     nums
 }
 
-fn is_near_symbol(g: &Grid, n: Number) -> bool {
+fn near_symbols(g: &Grid, n: Number) -> Vec<(char, Loc)> {
+    let mut symbols = Vec::new();
     for row in n.loc.row.checked_sub(1).unwrap_or(0)..cmp::min(g.len(), n.loc.row + 2) {
         for col in n.loc.col.checked_sub(1).unwrap_or(0)..cmp::min(g[row].len(), n.loc.col + n.len + 1) {
-            if let Tile::Symbol(_) = g[row][col] { return true; }
+            let loc = Loc { row, col };
+            if let Tile::Symbol(s) = tile_at(g, loc) { symbols.push((s, loc)); }
         }
     }
-    false
+    symbols
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -70,9 +73,23 @@ fn main() -> Result<(), Box<dyn Error>> {
             line.chars().map(parse_tile).collect()
         ).collect();
     let mut part_numbers = 0;
+    let mut potential_gears = HashMap::new();
     for &n in find_numbers(&g).iter() {
-        if is_near_symbol(&g, n) { part_numbers += n.value; }
+        let symbols = near_symbols(&g, n);
+        if !symbols.is_empty() { part_numbers += n.value; }
+        for &(s, loc) in symbols.iter() {
+            if s == '*' {
+                potential_gears.entry(loc).or_insert(Vec::new()).push(n.value);
+            }
+        }
     }
     println!("{}", part_numbers);
+    let mut gear_ratios = 0;
+    for (_, values) in potential_gears {
+        if values.len() == 2 {
+            gear_ratios += values[0] * values[1];
+        }
+    }
+    println!("{}", gear_ratios);
     Ok(())
 }
