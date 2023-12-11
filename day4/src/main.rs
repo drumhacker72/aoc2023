@@ -6,7 +6,7 @@ use nom::{
     sequence::{delimited, tuple},
 };
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs::File,
     io::{BufReader, BufRead},
 };
@@ -35,25 +35,37 @@ fn parse_card(s: &str) -> IResult<&str, Card> {
     Ok((s, Card { id, winners: HashSet::from_iter(winners.iter().cloned()), numbers }))
 }
 
+fn num_winners(card: &Card) -> u32 {
+    card.numbers.iter().filter(|n| card.winners.contains(n)).count() as u32
+}
+
 fn score(card: &Card) -> u32 {
-    let mut score = 0;
-    for n in card.numbers.iter() {
-        if card.winners.contains(n) {
-            if score == 0 { score = 1; } else { score *= 2; }
-        }
+    match num_winners(card) {
+        0 => 0,
+        c => 1 << (c - 1),
     }
-    score
 }
 
 fn main() {
     let file = File::open("day4.txt").unwrap();
     let lines = BufReader::new(file).lines();
     let mut scores = 0;
+    let mut copies: HashMap<u32, u32> = HashMap::new();
+    let mut total_cards = 0;
     for line in lines {
         let l = line.unwrap();
         let (remaining, card) = parse_card(&l).unwrap();
         assert!(remaining.is_empty());
         scores += score(&card);
+
+        let count = 1 + copies.get(&card.id).unwrap_or(&0);
+        total_cards += count;
+        let winners = num_winners(&card);
+        for id in card.id+1..=card.id+winners {
+            copies.entry(id).and_modify(|e| *e += count).or_insert(count);
+        }
+        copies.remove(&card.id);
     }
     println!("{}", scores);
+    println!("{}", total_cards);
 }
