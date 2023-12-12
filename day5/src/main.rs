@@ -3,6 +3,7 @@ use nom::bytes::complete::tag;
 use nom::character::complete::{alpha1, line_ending, multispace1, space1, u64};
 use nom::multi::{separated_list1, many1};
 use nom::sequence::{separated_pair, tuple};
+use std::cmp;
 use std::collections::HashMap;
 use std::fs;
 
@@ -21,7 +22,7 @@ struct Map<'a> {
 impl Map<'_> {
     fn get(&self, src: u64) -> u64 {
         for line in self.lines.iter() {
-            if src >= line.src_start && src < line.src_start + line.len {
+            if line.src_start <= src && src < line.src_start + line.len {
                 return src - line.src_start + line.dst_start;
             }
         }
@@ -90,4 +91,13 @@ fn main() {
     assert!(remaining.is_empty());
     let lowest = seeds.iter().map(|&n| almanac.seed_to_location(n)).min().unwrap();
     println!("{lowest}");
+
+    let mut lowest_chunked = u64::MAX;
+    for chunk in seeds.chunks(2) {
+        let &[start, len] = chunk else { panic!() };
+        for i in start..(start+len) {
+            lowest_chunked = cmp::min(lowest_chunked, almanac.seed_to_location(i));
+        }
+    }
+    println!("{lowest_chunked}");
 }
