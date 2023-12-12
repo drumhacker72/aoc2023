@@ -1,10 +1,10 @@
-use std::cmp::Ordering;
+use std::cmp::{self, Ordering};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufRead};
 
 #[derive(Debug, Eq, PartialEq)]
-struct Card(char);
+struct Card(char, bool);
 
 impl Card {
     fn strength(&self) -> u32 {
@@ -12,7 +12,7 @@ impl Card {
             'A' => 14,
             'K' => 13,
             'Q' => 12,
-            'J' => 11,
+            'J' => if self.1 { 1 } else { 11 },
             'T' => 10,
             d => d.to_digit(10).expect("card should be a digit"),
         }
@@ -31,10 +31,10 @@ impl Ord for Card {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct Hand {
+    hand_type: HandType,
     cards: [Card; 5],
-    groups: Vec<u32>,
 }
 
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -48,33 +48,27 @@ enum HandType {
     FiveOfAKind,
 }
 
-fn hand_type(hand: &Hand) -> HandType {
-    match hand.groups.len() {
+fn type_from_groups(groups: &Vec<u32>) -> HandType {
+    match groups.len() {
         1 => HandType::FiveOfAKind,
-        2 => if hand.groups.contains(&4) { HandType::FourOfAKind } else { HandType::FullHouse },
-        3 => if hand.groups.contains(&3) { HandType::ThreeOfAKind } else { HandType::TwoPair },
+        2 => if groups.contains(&4) { HandType::FourOfAKind } else { HandType::FullHouse },
+        3 => if groups.contains(&3) { HandType::ThreeOfAKind } else { HandType::TwoPair },
         4 => HandType::OnePair,
         5 => HandType::HighCard,
         _ => panic!(),
     }
 }
 
-impl PartialOrd for Hand {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+fn make_groups(cards: [char; 5], replace_joker: char) -> HashMap<char, u32> {
+    let mut groups: HashMap<char, u32> = HashMap::new();
+    for card in cards {
+        let card = if card == 'J' { replace_joker } else { card };
+        groups.entry(card).and_modify(|x| *x += 1).or_insert(1);
     }
+    groups
 }
 
-impl Ord for Hand {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match hand_type(self).cmp(&hand_type(other)) {
-            Ordering::Equal => { self.cards.cmp(&other.cards) }
-            o => o
-        }
-    }
-}
-
-fn parse_line(line: &str) -> (Hand, u32) {
+fn parse_line(line: &str, jokers: bool) -> (Hand, u32) {
     let mut iter = line.chars();
     let a = iter.next().unwrap();
     let b = iter.next().unwrap();
@@ -84,23 +78,48 @@ fn parse_line(line: &str) -> (Hand, u32) {
     assert!(iter.next() == Some(' '));
     let bid = iter.as_str().parse().unwrap();
 
-    let mut groups: HashMap<char, u32> = HashMap::new();
-    for card in [a, b, c, d, e] {
-        groups.entry(card).and_modify(|x| *x += 1).or_insert(1);
-    }
-    let cards = [Card(a), Card(b), Card(c), Card(d), Card(e)];
-    let groups: Vec<u32> = groups.values().copied().collect();
-    (Hand { cards, groups }, bid)
+    let cards = [a, b, c, d, e];
+    let hand_type = if jokers {
+            let mut best = HandType::HighCard;
+            for replace in ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'Q', 'K', 'A'] {
+                let groups = make_groups(cards, replace);
+                let hand_type = type_from_groups(&groups.values().copied().collect());
+                best = cmp::max(best, hand_type);
+            }
+            best
+        } else {
+            let groups = make_groups(cards, 'J');
+            type_from_groups(&groups.values().copied().collect())
+        };
+    let cards = [Card(a, jokers), Card(b, jokers), Card(c, jokers), Card(d, jokers), Card(e, jokers)];
+    (Hand { hand_type, cards }, bid)
 }
 
-fn main() {
+fn part1() {
     let file = File::open("day7.txt").unwrap();
     let lines = BufReader::new(file).lines();
-    let mut hand_bids: Vec<(Hand, u32)> = lines.map(|l| parse_line(&l.unwrap())).collect();
+    let mut hand_bids: Vec<(Hand, u32)> = lines.map(|l| parse_line(&l.unwrap(), false)).collect();
     hand_bids.sort();
     let mut winnings = 0;
     for i in 0..hand_bids.len() {
         winnings += hand_bids[i].1 * (i as u32 + 1);
     }
     println!("{}", winnings);
+}
+
+fn part2() {
+    let file = File::open("day7.txt").unwrap();
+    let lines = BufReader::new(file).lines();
+    let mut hand_bids: Vec<(Hand, u32)> = lines.map(|l| parse_line(&l.unwrap(), true)).collect();
+    hand_bids.sort();
+    let mut winnings = 0;
+    for i in 0..hand_bids.len() {
+        winnings += hand_bids[i].1 * (i as u32 + 1);
+    }
+    println!("{}", winnings);
+}
+
+fn main() {
+    part1();
+    part2();
 }
