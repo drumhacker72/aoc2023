@@ -13,17 +13,12 @@ fn is_col_empty(g: &Grid, col: usize) -> bool {
     true
 }
 
-fn main() {
-    let file = File::open("day11.txt").unwrap();
-    let lines = BufReader::new(file).lines();
-    let grid: Grid = lines
-        .map(|l| l.unwrap().chars().map(|c| c == '#').collect())
-        .collect();
+fn run_part(grid: &Grid, multiplier: usize) {
     let mut row_ts = HashMap::new();
     let mut row_t = 0;
     for row in 0..grid.len() {
         if !grid[row].iter().any(|&x| x) {
-            row_t += 1;
+            row_t += multiplier - 1;
         } else {
             row_ts.insert(row, row_t);
         }
@@ -33,7 +28,7 @@ fn main() {
     let mut col_t = 0;
     for col in 0..grid[0].len() {
         if is_col_empty(&grid, col) {
-            col_t += 1;
+            col_t += multiplier - 1;
         } else {
             col_ts.insert(col, col_t);
         }
@@ -56,4 +51,14 @@ fn main() {
         }
     }
     println!("{distances}");
+}
+
+fn main() {
+    let file = File::open("day11.txt").unwrap();
+    let lines = BufReader::new(file).lines();
+    let grid: Grid = lines
+        .map(|l| l.unwrap().chars().map(|c| c == '#').collect())
+        .collect();
+    run_part(&grid, 2);
+    run_part(&grid, 1_000_000);
 }
