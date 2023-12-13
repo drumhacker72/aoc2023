@@ -1,10 +1,11 @@
 use nom::IResult;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::character::complete::{alpha1, char, line_ending, multispace1};
+use nom::character::complete::{alphanumeric1, char, line_ending, multispace1};
 use nom::combinator::value;
 use nom::multi::many1;
 use nom::sequence::tuple;
+use num::integer::lcm;
 use std::collections::HashMap;
 use std::fs;
 
@@ -29,11 +30,11 @@ struct Entry<'a> {
 
 fn parse_entry(s: &str) -> IResult<&str, Entry> {
     let (s, (src, _, dst1, _, dst2, _, _)) = tuple((
-        alpha1,
+        alphanumeric1,
         tag(" = ("),
-        alpha1,
+        alphanumeric1,
         tag(", "),
-        alpha1,
+        alphanumeric1,
         tag(")"),
         line_ending,
     ))(s)?;
@@ -69,4 +70,34 @@ fn main() {
         steps += 1;
     }
     println!("{steps}");
+
+    // From experimenting by hand, input seems to be carefully crafted so that the
+    // number of iterations until the first "Z" exit for each start node is *exactly*
+    // the cycle length.
+    // Otherwise this would be a lot more complicated.
+    let mut cycles: Vec<u64> = Vec::new();
+    for node in network.keys() {
+        if !node.ends_with("A") { continue; }
+        let mut cursor: &str = node;
+        let mut steps = 0;
+        let mut seen: HashMap<(&str, u64), u64> = HashMap::new();
+        for inst in insts.iter().cycle() {
+            let m = steps % insts.len() as u64;
+            if seen.contains_key(&(cursor, m)) {
+                let start = *seen.get(&(cursor, m)).unwrap();
+                let cycle: u64 = steps - start;
+                cycles.push(cycle);
+                break;
+            }
+            seen.insert((cursor, m), steps);
+            let next = network.get(cursor).unwrap();
+            cursor = match inst {
+                Inst::L => next.0,
+                Inst::R => next.1,
+            };
+            steps += 1;
+        }
+    }
+    let lcm: u64 = cycles.iter().fold(1, |acc, &c| lcm(acc, c));
+    println!("{lcm}");
 }
