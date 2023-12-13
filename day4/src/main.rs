@@ -1,14 +1,14 @@
 use nom::{
-    IResult,
     bytes::complete::tag,
     character::complete::{space0, space1, u32},
     multi::separated_list1,
     sequence::{delimited, tuple},
+    IResult,
 };
 use std::{
     collections::{HashMap, HashSet},
     fs::File,
-    io::{BufReader, BufRead},
+    io::{BufRead, BufReader},
 };
 
 #[derive(Debug)]
@@ -32,11 +32,21 @@ fn parse_card(s: &str) -> IResult<&str, Card> {
         tag("|"),
         parse_number_list,
     ))(s)?;
-    Ok((s, Card { id, winners: HashSet::from_iter(winners.iter().cloned()), numbers }))
+    Ok((
+        s,
+        Card {
+            id,
+            winners: HashSet::from_iter(winners.iter().cloned()),
+            numbers,
+        },
+    ))
 }
 
 fn num_winners(card: &Card) -> u32 {
-    card.numbers.iter().filter(|n| card.winners.contains(n)).count() as u32
+    card.numbers
+        .iter()
+        .filter(|n| card.winners.contains(n))
+        .count() as u32
 }
 
 fn score(card: &Card) -> u32 {
@@ -61,8 +71,11 @@ fn main() {
         let count = 1 + copies.get(&card.id).unwrap_or(&0);
         total_cards += count;
         let winners = num_winners(&card);
-        for id in card.id+1..=card.id+winners {
-            copies.entry(id).and_modify(|e| *e += count).or_insert(count);
+        for id in card.id + 1..=card.id + winners {
+            copies
+                .entry(id)
+                .and_modify(|e| *e += count)
+                .or_insert(count);
         }
         copies.remove(&card.id);
     }

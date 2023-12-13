@@ -1,7 +1,7 @@
 use std::cmp::{self, Ordering};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{BufReader, BufRead};
+use std::io::{BufRead, BufReader};
 
 #[derive(Debug, Eq, PartialEq)]
 struct Card(char, bool);
@@ -12,7 +12,13 @@ impl Card {
             'A' => 14,
             'K' => 13,
             'Q' => 12,
-            'J' => if self.1 { 1 } else { 11 },
+            'J' => {
+                if self.1 {
+                    1
+                } else {
+                    11
+                }
+            }
             'T' => 10,
             d => d.to_digit(10).expect("card should be a digit"),
         }
@@ -51,8 +57,20 @@ enum HandType {
 fn type_from_groups(groups: &Vec<u32>) -> HandType {
     match groups.len() {
         1 => HandType::FiveOfAKind,
-        2 => if groups.contains(&4) { HandType::FourOfAKind } else { HandType::FullHouse },
-        3 => if groups.contains(&3) { HandType::ThreeOfAKind } else { HandType::TwoPair },
+        2 => {
+            if groups.contains(&4) {
+                HandType::FourOfAKind
+            } else {
+                HandType::FullHouse
+            }
+        }
+        3 => {
+            if groups.contains(&3) {
+                HandType::ThreeOfAKind
+            } else {
+                HandType::TwoPair
+            }
+        }
         4 => HandType::OnePair,
         5 => HandType::HighCard,
         _ => panic!(),
@@ -80,18 +98,24 @@ fn parse_line(line: &str, jokers: bool) -> (Hand, u32) {
 
     let cards = [a, b, c, d, e];
     let hand_type = if jokers {
-            let mut best = HandType::HighCard;
-            for replace in ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'Q', 'K', 'A'] {
-                let groups = make_groups(cards, replace);
-                let hand_type = type_from_groups(&groups.values().copied().collect());
-                best = cmp::max(best, hand_type);
-            }
-            best
-        } else {
-            let groups = make_groups(cards, 'J');
-            type_from_groups(&groups.values().copied().collect())
-        };
-    let cards = [Card(a, jokers), Card(b, jokers), Card(c, jokers), Card(d, jokers), Card(e, jokers)];
+        let mut best = HandType::HighCard;
+        for replace in ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'Q', 'K', 'A'] {
+            let groups = make_groups(cards, replace);
+            let hand_type = type_from_groups(&groups.values().copied().collect());
+            best = cmp::max(best, hand_type);
+        }
+        best
+    } else {
+        let groups = make_groups(cards, 'J');
+        type_from_groups(&groups.values().copied().collect())
+    };
+    let cards = [
+        Card(a, jokers),
+        Card(b, jokers),
+        Card(c, jokers),
+        Card(d, jokers),
+        Card(e, jokers),
+    ];
     (Hand { hand_type, cards }, bid)
 }
 

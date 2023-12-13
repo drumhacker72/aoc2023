@@ -1,8 +1,8 @@
-use nom::IResult;
 use nom::bytes::complete::tag;
 use nom::character::complete::{alpha1, line_ending, multispace1, space1, u64};
-use nom::multi::{separated_list1, many1};
+use nom::multi::{many1, separated_list1};
 use nom::sequence::{separated_pair, tuple};
+use nom::IResult;
 use std::cmp;
 use std::collections::HashMap;
 use std::fs;
@@ -48,15 +48,16 @@ impl Almanac<'_> {
 }
 
 fn parse_map_line(s: &str) -> IResult<&str, MapLine> {
-    let (s, (dst_start, _, src_start, _, len, _)) = tuple((
-        u64,
-        space1,
-        u64,
-        space1,
-        u64,
-        line_ending,
-    ))(s)?;
-    Ok((s, MapLine { dst_start, src_start, len }))
+    let (s, (dst_start, _, src_start, _, len, _)) =
+        tuple((u64, space1, u64, space1, u64, line_ending))(s)?;
+    Ok((
+        s,
+        MapLine {
+            dst_start,
+            src_start,
+            len,
+        },
+    ))
 }
 
 fn parse_map(s: &str) -> IResult<&str, Map> {
@@ -89,13 +90,17 @@ fn main() {
     let f = fs::read_to_string("day5.txt").unwrap();
     let (remaining, (seeds, almanac)) = parse_input(&f).unwrap();
     assert!(remaining.is_empty());
-    let lowest = seeds.iter().map(|&n| almanac.seed_to_location(n)).min().unwrap();
+    let lowest = seeds
+        .iter()
+        .map(|&n| almanac.seed_to_location(n))
+        .min()
+        .unwrap();
     println!("{lowest}");
 
     let mut lowest_chunked = u64::MAX;
     for chunk in seeds.chunks(2) {
         let &[start, len] = chunk else { panic!() };
-        for i in start..(start+len) {
+        for i in start..(start + len) {
             lowest_chunked = cmp::min(lowest_chunked, almanac.seed_to_location(i));
         }
     }

@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{BufReader, BufRead};
+use std::io::{BufRead, BufReader};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Dir {
@@ -26,17 +26,45 @@ struct Pipe(Dir, Dir);
 type Grid = Vec<Vec<Option<Pipe>>>;
 
 fn turn(d: Dir, p: Pipe) -> Option<Dir> {
-    if p.0 == d.invert() { Some(p.1) }
-    else if p.1 == d.invert() { Some(p.0) }
-    else { None }
+    if p.0 == d.invert() {
+        Some(p.1)
+    } else if p.1 == d.invert() {
+        Some(p.0)
+    } else {
+        None
+    }
 }
 
 fn dmove(g: &Grid, d: Dir, p: (usize, usize)) -> Option<(usize, usize)> {
     match d {
-        Dir::N => if p.0 == 0 { None } else { Some((p.0-1, p.1)) },
-        Dir::S => if p.0 == g.len()-1 { None } else { Some((p.0+1, p.1)) },
-        Dir::E => if p.1 == g[p.0].len()-1 { None } else { Some((p.0, p.1+1)) },
-        Dir::W => if p.1 == 0 { None } else { Some((p.0, p.1-1)) },
+        Dir::N => {
+            if p.0 == 0 {
+                None
+            } else {
+                Some((p.0 - 1, p.1))
+            }
+        }
+        Dir::S => {
+            if p.0 == g.len() - 1 {
+                None
+            } else {
+                Some((p.0 + 1, p.1))
+            }
+        }
+        Dir::E => {
+            if p.1 == g[p.0].len() - 1 {
+                None
+            } else {
+                Some((p.0, p.1 + 1))
+            }
+        }
+        Dir::W => {
+            if p.1 == 0 {
+                None
+            } else {
+                Some((p.0, p.1 - 1))
+            }
+        }
     }
 }
 
@@ -79,21 +107,32 @@ fn main() {
     let mut start = (0, 0);
     for (row, line) in lines.enumerate() {
         let l = line.unwrap();
-        let pipes: Vec<Option<Pipe>> = l.chars().enumerate().map(|(col, c)|
-                if c == 'S' { start = (row, col); None }
-                else { parse_pipe(c) }
-            ).collect();
+        let pipes: Vec<Option<Pipe>> = l
+            .chars()
+            .enumerate()
+            .map(|(col, c)| {
+                if c == 'S' {
+                    start = (row, col);
+                    None
+                } else {
+                    parse_pipe(c)
+                }
+            })
+            .collect();
         grid.push(pipes);
     }
     let mut cursors = starts(&grid, start);
     let mut dist = 1;
     while cursors[0].0 != cursors[1].0 {
-        cursors = cursors.iter().map(|&(p, d)| {
+        cursors = cursors
+            .iter()
+            .map(|&(p, d)| {
                 let pp = dmove(&grid, d, p).unwrap();
                 let pipe = get(&grid, pp).unwrap();
                 let dd = turn(d, pipe).unwrap();
                 (pp, dd)
-            }).collect();
+            })
+            .collect();
         dist += 1;
     }
     println!("{dist}");
@@ -102,13 +141,15 @@ fn main() {
     let (mut cur, mut d) = starts(&grid, start)[0];
     let mut shoelace: isize = 0;
     loop {
-        shoelace += (last.0 as isize)*(cur.1 as isize) - (cur.0 as isize)*(last.1 as isize);
+        shoelace += (last.0 as isize) * (cur.1 as isize) - (cur.0 as isize) * (last.1 as isize);
         last = cur;
         cur = dmove(&grid, d, cur).unwrap();
-        if cur == start { break; }
+        if cur == start {
+            break;
+        }
         let pipe = get(&grid, cur).unwrap();
         d = turn(d, pipe).unwrap();
     }
-    shoelace += (last.0 as isize)*(cur.1 as isize) - (cur.0 as isize)*(last.1 as isize);
-    println!("{}", (shoelace.abs() - (dist-1) * 2)/2);
+    shoelace += (last.0 as isize) * (cur.1 as isize) - (cur.0 as isize) * (last.1 as isize);
+    println!("{}", (shoelace.abs() - (dist - 1) * 2) / 2);
 }

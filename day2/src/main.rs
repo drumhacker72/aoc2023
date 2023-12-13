@@ -1,15 +1,11 @@
 use nom::{
-    IResult,
-    branch::alt,
-    bytes::complete::tag,
-    character::complete::u32,
-    combinator::value,
-    multi::separated_list1,
+    branch::alt, bytes::complete::tag, character::complete::u32, combinator::value,
+    multi::separated_list1, IResult,
 };
 use std::{
     cmp::max,
     fs::File,
-    io::{BufReader, BufRead},
+    io::{BufRead, BufReader},
     ops::Add,
 };
 
@@ -30,14 +26,22 @@ impl Add for Counts {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
-        Counts { r: self.r + other.r, g: self.g + other.g, b: self.b + other.b }
+        Counts {
+            r: self.r + other.r,
+            g: self.g + other.g,
+            b: self.b + other.b,
+        }
     }
 }
 
 const EMPTY: Counts = Counts { r: 0, g: 0, b: 0 };
 
 fn max_each(a: Counts, b: Counts) -> Counts {
-    Counts { r: max(a.r, b.r), g: max(a.g, b.g), b: max(a.b, b.b) }
+    Counts {
+        r: max(a.r, b.r),
+        g: max(a.g, b.g),
+        b: max(a.b, b.b),
+    }
 }
 
 #[derive(Debug)]
@@ -72,7 +76,11 @@ fn parse_game(s: &str) -> IResult<&str, Game> {
 fn main() {
     let file = File::open("day2.txt").unwrap();
     let lines = BufReader::new(file).lines();
-    const LIMITS: Counts = Counts { r: 12, g: 13, b: 14 };
+    const LIMITS: Counts = Counts {
+        r: 12,
+        g: 13,
+        b: 14,
+    };
     let mut good_ids = 0;
     let mut power_sum = 0;
     for line in lines {
@@ -80,7 +88,9 @@ fn main() {
         let (remaining, game) = parse_game(&l).unwrap();
         assert!(remaining.is_empty());
         let is_good = game.rounds.iter().all(|x| x.is_within(LIMITS));
-        if is_good { good_ids += game.id; }
+        if is_good {
+            good_ids += game.id;
+        }
 
         let min_needed = game.rounds.iter().fold(EMPTY, |acc, &x| max_each(acc, x));
         let power = min_needed.r * min_needed.g * min_needed.b;

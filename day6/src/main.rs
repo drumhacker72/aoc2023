@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{BufReader, BufRead};
+use std::io::{BufRead, BufReader};
 use std::iter;
 
 fn parse_int_list(line: &str) -> Vec<u64> {
@@ -14,8 +14,7 @@ fn parse_wide_int(line: &str) -> u64 {
     tokens.collect::<Vec<_>>().join("").parse().unwrap()
 }
 
-fn race_distance(button_time: u64, total_time: u64) -> u64
-{
+fn race_distance(button_time: u64, total_time: u64) -> u64 {
     button_time * (total_time - button_time)
 }
 
@@ -29,7 +28,9 @@ fn part1() {
     for (time, distance) in races {
         let mut ways = 0;
         for b in 0..=time {
-            if race_distance(b, time) > distance { ways += 1 }
+            if race_distance(b, time) > distance {
+                ways += 1
+            }
         }
         race_ways.push(ways);
     }
@@ -43,7 +44,9 @@ fn part2() {
     let distance = parse_wide_int(&lines.next().unwrap().unwrap());
     let mut ways = 0;
     for b in 0..=time {
-        if race_distance(b, time) > distance { ways += 1 }
+        if race_distance(b, time) > distance {
+            ways += 1
+        }
     }
     println!("{ways}");
 }
