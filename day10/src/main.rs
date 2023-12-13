@@ -97,4 +97,18 @@ fn main() {
         dist += 1;
     }
     println!("{dist}");
+
+    let mut last = start;
+    let (mut cur, mut d) = starts(&grid, start)[0];
+    let mut shoelace: isize = 0;
+    loop {
+        shoelace += (last.0 as isize)*(cur.1 as isize) - (cur.0 as isize)*(last.1 as isize);
+        last = cur;
+        cur = dmove(&grid, d, cur).unwrap();
+        if cur == start { break; }
+        let pipe = get(&grid, cur).unwrap();
+        d = turn(d, pipe).unwrap();
+    }
+    shoelace += (last.0 as isize)*(cur.1 as isize) - (cur.0 as isize)*(last.1 as isize);
+    println!("{}", (shoelace.abs() - (dist-1) * 2)/2);
 }
