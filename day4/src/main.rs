@@ -1,15 +1,11 @@
-use nom::{
-    bytes::complete::tag,
-    character::complete::{space0, space1, u32},
-    multi::separated_list1,
-    sequence::{delimited, tuple},
-    IResult,
-};
-use std::{
-    collections::{HashMap, HashSet},
-    fs::File,
-    io::{BufRead, BufReader},
-};
+use nom::bytes::complete::tag;
+use nom::character::complete::{space0, space1, u32};
+use nom::multi::separated_list1;
+use nom::sequence::{delimited, tuple};
+use nom::IResult;
+use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::{BufRead, BufReader};
 
 #[derive(Debug)]
 struct Card {
@@ -58,13 +54,12 @@ fn score(card: &Card) -> u32 {
 
 fn main() {
     let file = File::open("day4.txt").unwrap();
-    let lines = BufReader::new(file).lines();
+    let lines = BufReader::new(file).lines().map(|l| l.unwrap());
     let mut scores = 0;
     let mut copies: HashMap<u32, u32> = HashMap::new();
     let mut total_cards = 0;
     for line in lines {
-        let l = line.unwrap();
-        let (remaining, card) = parse_card(&l).unwrap();
+        let (remaining, card) = parse_card(&line).unwrap();
         assert!(remaining.is_empty());
         scores += score(&card);
 

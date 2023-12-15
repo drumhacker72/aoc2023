@@ -3,24 +3,23 @@ use std::io::{BufRead, BufReader};
 
 fn main() {
     let file = File::open("day1.txt").unwrap();
-    let lines = BufReader::new(file).lines();
+    let lines = BufReader::new(file).lines().map(|l| l.unwrap());
     let mut total1 = 0;
     let mut total2 = 0;
     for line in lines {
-        let l = line.unwrap();
-        total1 += calibration(&l, false);
-        total2 += calibration(&l, true);
+        total1 += calibration(&line, false);
+        total2 += calibration(&line, true);
     }
     println!("{total1}");
     println!("{total2}");
 }
 
 fn calibration(line: &str, allow_spelled: bool) -> u32 {
-    let mut first_digit: Option<u32> = None;
-    let mut last_digit: Option<u32> = None;
-    let mut cursor: &str = &line;
+    let mut first_digit = None;
+    let mut last_digit = None;
+    let mut cursor = line;
     while !cursor.is_empty() {
-        let d = front_digit(&cursor, allow_spelled);
+        let d = front_digit(cursor, allow_spelled);
         if d.is_some() {
             if first_digit.is_none() {
                 first_digit = d;

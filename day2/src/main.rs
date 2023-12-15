@@ -1,13 +1,14 @@
-use nom::{
-    branch::alt, bytes::complete::tag, character::complete::u32, combinator::value,
-    multi::separated_list1, IResult,
-};
-use std::{
-    cmp::max,
-    fs::File,
-    io::{BufRead, BufReader},
-    ops::Add,
-};
+use nom::branch::alt;
+use nom::bytes::complete::tag;
+use nom::character::complete::u32;
+use nom::combinator::value;
+use nom::multi::separated_list1;
+use nom::sequence::tuple;
+use nom::IResult;
+use std::cmp;
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::ops::Add;
 
 #[derive(Clone, Copy, Debug)]
 struct Counts {
@@ -38,9 +39,9 @@ const EMPTY: Counts = Counts { r: 0, g: 0, b: 0 };
 
 fn max_each(a: Counts, b: Counts) -> Counts {
     Counts {
-        r: max(a.r, b.r),
-        g: max(a.g, b.g),
-        b: max(a.b, b.b),
+        r: cmp::max(a.r, b.r),
+        g: cmp::max(a.g, b.g),
+        b: cmp::max(a.b, b.b),
     }
 }
 
@@ -66,16 +67,18 @@ fn parse_round(s: &str) -> IResult<&str, Counts> {
 }
 
 fn parse_game(s: &str) -> IResult<&str, Game> {
-    let (s, _) = tag("Game ")(s)?;
-    let (s, id) = u32(s)?;
-    let (s, _) = tag(": ")(s)?;
-    let (s, rounds) = separated_list1(tag("; "), parse_round)(s)?;
+    let (s, (_, id, _, rounds)) = tuple((
+        tag("Game "),
+        u32,
+        tag(": "),
+        separated_list1(tag("; "), parse_round),
+    ))(s)?;
     Ok((s, Game { id, rounds }))
 }
 
 fn main() {
     let file = File::open("day2.txt").unwrap();
-    let lines = BufReader::new(file).lines();
+    let lines = BufReader::new(file).lines().map(|l| l.unwrap());
     const LIMITS: Counts = Counts {
         r: 12,
         g: 13,
@@ -84,8 +87,7 @@ fn main() {
     let mut good_ids = 0;
     let mut power_sum = 0;
     for line in lines {
-        let l = line.unwrap();
-        let (remaining, game) = parse_game(&l).unwrap();
+        let (remaining, game) = parse_game(&line).unwrap();
         assert!(remaining.is_empty());
         let is_good = game.rounds.iter().all(|x| x.is_within(LIMITS));
         if is_good {
