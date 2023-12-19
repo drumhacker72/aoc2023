@@ -140,9 +140,9 @@ fn main() {
         let line = line.unwrap();
         let (remaining, ratings) = parse_ratings(&line).unwrap();
         assert!(remaining == "");
-        let mut cursor = "in".to_string();
+        let mut cursor = "in";
         let score = loop {
-            match process(&workflows[&cursor], &ratings) {
+            match process(&workflows[cursor], &ratings) {
                 Dest::Accepted => {
                     break ratings.values().fold(0, |acc, v| acc + v);
                 }
@@ -150,7 +150,7 @@ fn main() {
                     break 0;
                 }
                 Dest::Workflow(n) => {
-                    cursor = n.to_string();
+                    cursor = n;
                 }
             }
         };
