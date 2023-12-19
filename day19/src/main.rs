@@ -5,6 +5,7 @@ use nom::combinator::{map, value};
 use nom::multi::separated_list0;
 use nom::sequence::{separated_pair, tuple};
 use nom::IResult;
+use std::cmp;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -117,6 +118,76 @@ fn process<'a>(w: &'a Workflow, r: &Ratings) -> &'a Dest {
     return &w.fallback;
 }
 
+fn update(ranges: &mut HashMap<Cat, (u64, u64)>, c: &Cond, invert: bool) {
+    match c {
+        Cond::Lt(cat, val) => {
+            if !invert {
+                ranges.get_mut(cat).unwrap().1 = cmp::min(ranges[cat].1, *val - 1);
+            } else {
+                ranges.get_mut(cat).unwrap().0 = cmp::max(ranges[cat].0, *val);
+            }
+        }
+        Cond::Gt(cat, val) => {
+            if !invert {
+                ranges.get_mut(cat).unwrap().0 = cmp::max(ranges[cat].0, *val + 1);
+            } else {
+                ranges.get_mut(cat).unwrap().1 = cmp::min(ranges[cat].1, *val);
+            }
+        }
+    }
+}
+
+fn analyze(
+    workflows: &HashMap<String, Workflow>,
+    cursor: &str,
+    mut ranges: HashMap<Cat, (u64, u64)>,
+) -> Vec<HashMap<Cat, (u64, u64)>> {
+    let w = &workflows[cursor];
+    let mut new_ranges = Vec::new();
+    for (c, d) in &w.rules {
+        match d {
+            Dest::Accepted => {
+                let mut fin = ranges.clone();
+                update(&mut fin, c, false);
+                new_ranges.push(fin);
+                update(&mut ranges, c, true);
+            }
+            Dest::Rejected => {
+                update(&mut ranges, c, true);
+            }
+            Dest::Workflow(next) => {
+                let mut branch = ranges.clone();
+                update(&mut branch, c, false);
+                new_ranges.extend(analyze(workflows, next, branch));
+                update(&mut ranges, c, true);
+            }
+        }
+    }
+    match &w.fallback {
+        Dest::Accepted => {
+            new_ranges.push(ranges);
+        }
+        Dest::Rejected => {}
+        Dest::Workflow(next) => {
+            new_ranges.extend(analyze(workflows, &next, ranges));
+        }
+    }
+    new_ranges
+}
+
+fn possibilities(ranges: &[(u64, u64)]) -> u64 {
+    ranges.iter().fold(
+        1,
+        |acc, (min, max)| {
+            if min <= max {
+                acc * (max - min + 1)
+            } else {
+                0
+            }
+        },
+    )
+}
+
 fn main() {
     let file = File::open("day19.txt").unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
@@ -157,4 +228,17 @@ fn main() {
         total_score += score;
     }
     println!("{total_score}");
+
+    let init = HashMap::from([
+        (Cat::X, (1, 4000)),
+        (Cat::M, (1, 4000)),
+        (Cat::A, (1, 4000)),
+        (Cat::S, (1, 4000)),
+    ]);
+    let range_sets = analyze(&workflows, "in", init);
+    let ps = range_sets.iter().fold(0, |acc, rs| {
+        let ranges = Vec::from_iter(rs.values().copied());
+        acc + possibilities(&ranges[..])
+    });
+    println!("{ps}");
 }
