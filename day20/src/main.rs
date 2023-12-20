@@ -5,6 +5,7 @@ use nom::combinator::value;
 use nom::multi::separated_list1;
 use nom::sequence::tuple;
 use nom::IResult;
+use num::integer::lcm;
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -21,6 +22,15 @@ enum Module {
     Conjunction(HashMap<String, Pulse>),
     Broadcast,
     Untyped,
+}
+
+impl Module {
+    fn is_conjunction(&self) -> bool {
+        match self {
+            Module::Conjunction(_) => true,
+            _ => false,
+        }
+    }
 }
 
 fn parse_flip_flop(s: &str) -> IResult<&str, (&str, Module)> {
@@ -79,7 +89,7 @@ fn send_pulse(module: &mut Module, pulse: Pulse, source: &str) -> Option<Pulse> 
 
 type Network = HashMap<String, (Module, Vec<String>)>;
 
-fn push_button(network: &mut Network) -> (u64, u64) {
+fn push_button1(network: &mut Network) -> (u64, u64) {
     let mut q = VecDeque::from([("broadcaster".to_string(), Pulse::Low, "button".to_string())]);
     let mut low_pulses = 0;
     let mut high_pulses = 0;
@@ -103,6 +113,24 @@ fn push_button(network: &mut Network) -> (u64, u64) {
     (low_pulses, high_pulses)
 }
 
+fn push_button2(network: &mut Network, watch_high: &str) -> Vec<String> {
+    let mut watched = Vec::new();
+    let mut q = VecDeque::from([("broadcaster".to_string(), Pulse::Low, "button".to_string())]);
+    while !q.is_empty() {
+        let (name, pulse, source) = q.pop_front().unwrap();
+        if name == watch_high && pulse == Pulse::High {
+            watched.push(source.to_string());
+        }
+        let (module, destinations) = network.get_mut(&name).unwrap();
+        if let Some(result) = send_pulse(module, pulse, &source) {
+            for dest in destinations {
+                q.push_back((dest.to_string(), result, name.clone()));
+            }
+        }
+    }
+    watched
+}
+
 fn main() {
     let file = File::open("day20.txt").unwrap();
     let lines = BufReader::new(file).lines().map(|l| l.unwrap());
@@ -122,13 +150,13 @@ fn main() {
                 .or_insert(vec![name.to_string()]);
         }
     }
-    for (name, sources) in sources {
+    for (name, this_sources) in &sources {
         network
-            .entry(name)
+            .entry(name.clone())
             .and_modify(|e| match e {
                 (Module::Conjunction(inputs), _) => {
-                    for source in sources {
-                        inputs.insert(source, Pulse::Low);
+                    for this_source in this_sources {
+                        inputs.insert(this_source.clone(), Pulse::Low);
                     }
                 }
                 _ => {}
@@ -137,10 +165,35 @@ fn main() {
     }
     let mut low_pulses = 0;
     let mut high_pulses = 0;
+    let mut network1 = network.clone();
     for _i in 0..1000 {
-        let (l, h) = push_button(&mut network);
+        let (l, h) = push_button1(&mut network1);
         low_pulses += l;
         high_pulses += h;
     }
     println!("{}", low_pulses * high_pulses);
+
+    // Looking for low pulse to rx...
+    let penult = &sources["rx"];
+    assert!(penult.len() == 1);
+    let penult = &penult[0];
+    assert!(network[penult].0.is_conjunction());
+    // means looking for the cycle with all high pulses to the penultimate
+    // module (a conjunction for the given input).
+    let mut cycles = HashMap::new();
+    for source in &sources[penult] {
+        cycles.insert(source.to_string(), None);
+    }
+    let mut network2 = network.clone();
+    let mut presses = 0;
+    while cycles.values().any(|c| c.is_none()) {
+        presses += 1;
+        for source in push_button2(&mut network2, &penult) {
+            cycles.insert(source, Some(presses));
+        }
+    }
+    println!(
+        "{}",
+        cycles.values().fold(1u64, |acc, c| lcm(acc, c.unwrap()))
+    );
 }
