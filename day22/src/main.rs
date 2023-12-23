@@ -1,8 +1,9 @@
 use nom::character::complete::{char, u32};
 use nom::sequence::{separated_pair, tuple};
 use nom::IResult;
+use std::cell::RefCell;
 use std::cmp;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 
@@ -61,9 +62,9 @@ fn supported_by(
     bounds: Point,
     idx: usize,
     ends: &(Point, Point),
-) -> (bool, HashSet<usize>) {
+) -> (bool, BTreeSet<usize>) {
     let mut ground = false;
-    let mut bricks = HashSet::new();
+    let mut bricks = BTreeSet::new();
     for cube in cubify(ends) {
         match *at(grid, bounds, down(cube)) {
             Cube::Ground => {
@@ -91,6 +92,28 @@ fn drop(grid: &mut Vec<Cube>, bounds: Point, idx: usize, ends: &mut (Point, Poin
         assert!(*at(grid, bounds, cube) == Cube::Air);
         *at_mut(grid, bounds, cube) = Cube::Brick(idx);
     }
+}
+
+fn falls(supports: &Vec<(bool, BTreeSet<usize>)>, mut deletes: BTreeSet<usize>, idx: usize) -> u32 {
+    thread_local!(static MEMO: RefCell<HashMap<(BTreeSet<usize>, usize), u32>> = RefCell::new(HashMap::new()));
+    MEMO.with(|memo| {
+        if let Some(v) = memo.borrow().get(&(deletes.clone(), idx)) {
+            return *v;
+        }
+        let mut fs = 0;
+        deletes.insert(idx);
+        for (j, (g, bs)) in supports.iter().enumerate() {
+            if idx == j || deletes.contains(&j) {
+                continue;
+            }
+            if !g && bs.is_subset(&deletes) {
+                fs += 1 + falls(supports, deletes.clone(), j);
+                break;
+            }
+        }
+        memo.borrow_mut().insert((deletes, idx), fs);
+        fs
+    })
 }
 
 fn main() {
@@ -123,10 +146,9 @@ fn main() {
     loop {
         let mut changed = false;
         for (i, ends) in bricks.iter_mut().enumerate() {
-            if supported_by(&grid, bounds, i, ends) == (false, HashSet::new()) {
+            if supported_by(&grid, bounds, i, ends) == (false, BTreeSet::new()) {
                 drop(&mut grid, bounds, i, ends);
                 changed = true;
-                break;
             }
         }
         if !changed {
@@ -134,15 +156,19 @@ fn main() {
         }
     }
 
+    let mut supports = Vec::new();
+    for (i, ends) in bricks.iter().enumerate() {
+        supports.push(supported_by(&grid, bounds, i, ends));
+    }
+
     let mut num_safe = 0;
-    for i in 0..bricks.len() {
+    for i in 0..supports.len() {
         let mut safe = true;
-        for (j, ends) in bricks.iter().enumerate() {
+        for (j, (g, bs)) in supports.iter().enumerate() {
             if i == j {
                 continue;
             }
-            let (g, bs) = supported_by(&grid, bounds, j, ends);
-            if !g && bs == HashSet::from([i]) {
+            if !g && *bs == BTreeSet::from([i]) {
                 safe = false;
                 break;
             }
@@ -152,4 +178,10 @@ fn main() {
         }
     }
     println!("{num_safe}");
+
+    let mut fs = 0;
+    for i in 0..supports.len() {
+        fs += falls(&supports, BTreeSet::new(), i);
+    }
+    println!("{fs}");
 }
